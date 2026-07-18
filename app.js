@@ -13,6 +13,31 @@ let estado = { gastos: [], proximos: [] };
 let sha = null;
 let token = localStorage.getItem("gh_token") || "";
 
+/* ---------- sonido + vibración ---------- */
+let audioCtx;
+function initAudio() {
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+}
+function beep(tipo) {
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain(), now = audioCtx.currentTime;
+  o.type = "triangle";
+  o.connect(g); g.connect(audioCtx.destination);
+  if (tipo === "ok") { o.frequency.setValueAtTime(680, now); o.frequency.exponentialRampToValueAtTime(1040, now + 0.09); }
+  else if (tipo === "del") { o.frequency.setValueAtTime(400, now); o.frequency.exponentialRampToValueAtTime(220, now + 0.08); }
+  else { o.frequency.setValueAtTime(560, now); o.frequency.exponentialRampToValueAtTime(760, now + 0.05); }
+  g.gain.setValueAtTime(0.07, now); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+  o.start(now); o.stop(now + 0.15);
+}
+function tap(tipo) { initAudio(); beep(tipo); if (navigator.vibrate) navigator.vibrate(tipo === "del" ? 14 : 7); }
+// Sonido en cualquier botón / elemento interactivo
+document.addEventListener("pointerdown", (e) => {
+  const el = e.target.closest("button, .nav-btn, .connect-tile, .chip, .mov-item");
+  if (!el) return;
+  tap(el.classList.contains("mov-del") ? "del" : "click");
+}, true);
+
 /* ---------- utilidades ---------- */
 const fmtARS = (n) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 }).format(n || 0);
 const fmtUSD = (n) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(n || 0);
@@ -30,6 +55,7 @@ function badge(txt, ok) {
   const b = document.getElementById("sync-badge");
   b.textContent = txt;
   b.className = "sync-badge show" + (ok === false ? " err" : "");
+  if (ok !== false && /✓/.test(txt)) beep("ok");
   clearTimeout(b._t);
   b._t = setTimeout(() => { b.className = "sync-badge"; }, 2500);
 }
