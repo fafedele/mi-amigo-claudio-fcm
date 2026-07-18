@@ -278,6 +278,8 @@ document.getElementById("btn-olvidar").addEventListener("click", () => {
   }
 })();
 
+// Sin service worker (evita problemas de caché). Si quedó uno viejo, lo limpiamos.
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())).catch(() => {});
+  if (window.caches) caches.keys().then((ks) => ks.forEach((k) => caches.delete(k))).catch(() => {});
 }
