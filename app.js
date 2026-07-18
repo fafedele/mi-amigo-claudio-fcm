@@ -36,11 +36,13 @@ function badge(txt, ok) {
 
 /* ---------- GitHub API ---------- */
 async function cargarDatos() {
-  const r = await fetch(API + "?ref=main", {
+  const r = await fetch(API + "?ref=main&t=" + Date.now(), {
     headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json" },
+    cache: "no-store",
   });
-  if (r.status === 401) throw new Error("Token inválido");
-  if (r.status === 404) { estado = { gastos: [], proximos: [] }; sha = null; return; }
+  if (r.status === 401) throw new Error("Token inválido o vencido");
+  if (r.status === 403) throw new Error("El token no tiene permiso (necesita Contents: read & write)");
+  if (r.status === 404) throw new Error("No encontré los datos. Revisá que el token tenga acceso al repo 'control-de-egresos'");
   if (!r.ok) throw new Error("Error " + r.status);
   const j = await r.json();
   sha = j.sha;

@@ -1,5 +1,6 @@
-// Service worker mínimo (PWA). Cachea el shell; los datos van a la API de GitHub (red).
-const CACHE = "claudio-fcm-v1";
+// Service worker (PWA). Estrategia "red primero" para que siempre tome la última
+// versión de la app; usa la caché solo como respaldo cuando no hay conexión.
+const CACHE = "claudio-fcm-v2";
 const SHELL = ["./", "index.html", "style.css", "app.js", "assets/logo.png",
   "assets/icon-stats.svg", "assets/icon-movimientos.svg", "assets/icon-ahorros.svg"];
 
@@ -13,6 +14,14 @@ self.addEventListener("activate", (e) => {
 });
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
-  if (url.hostname === "api.github.com") return; // datos siempre a la red
-  e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request)));
+  if (url.hostname === "api.github.com") return; // datos: siempre a la red, sin SW
+  e.respondWith(
+    fetch(e.request)
+      .then((resp) => {
+        const copy = resp.clone();
+        caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+        return resp;
+      })
+      .catch(() => caches.match(e.request))
+  );
 });
