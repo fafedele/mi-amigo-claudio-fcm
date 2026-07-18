@@ -1,0 +1,16 @@
+{
+  "name": "Gastos compartidos · Claudio",
+  "short_name": "Claudio FCM",
+  "description": "Gastos compartidos por persona",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F2E8D0",
+  "theme_color": "#2C5F8A",
+  "icons": [
+    { "src": "assets/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

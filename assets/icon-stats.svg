@@ -1,0 +1,8 @@
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gráfico de columnas vintage (estadísticas) -->
+  <circle cx="32" cy="32" r="30" fill="#E0A82E" stroke="#141414" stroke-width="3"/>
+  <rect x="17" y="34" width="8" height="14" fill="#3F9B4E" stroke="#141414" stroke-width="2.4"/>
+  <rect x="28" y="24" width="8" height="24" fill="#C63D28" stroke="#141414" stroke-width="2.4"/>
+  <rect x="39" y="30" width="8" height="18" fill="#2C5F8A" stroke="#141414" stroke-width="2.4"/>
+  <path d="M14 48 L50 48" stroke="#141414" stroke-width="2.6" stroke-linecap="round"/>
+</svg>

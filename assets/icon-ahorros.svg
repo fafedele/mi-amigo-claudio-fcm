@@ -1,0 +1,10 @@
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Caja fuerte vintage (ahorros) -->
+  <circle cx="32" cy="32" r="30" fill="#2C5F8A" stroke="#141414" stroke-width="3"/>
+  <rect x="16" y="18" width="32" height="28" rx="3" fill="#3A3A3A" stroke="#141414" stroke-width="2.6"/>
+  <rect x="20" y="22" width="24" height="20" rx="2" fill="#F2E8D0" stroke="#141414" stroke-width="2"/>
+  <circle cx="32" cy="32" r="6.5" fill="#2C5F8A" stroke="#141414" stroke-width="2"/>
+  <path d="M32 32 L32 25 M32 32 L38 36 M32 32 L26 36" stroke="#141414" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M20 46 L20 50 M44 46 L44 50" stroke="#141414" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="40" cy="32" r="1.6" fill="#E0A82E"/>
+</svg>
