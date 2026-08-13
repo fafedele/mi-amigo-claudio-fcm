@@ -667,3 +667,36 @@ body {
   position: absolute; top: 8px; right: 10px; cursor: pointer;
   font-weight: bold; font-size: 16px; opacity: .7;
 }
+
+/* ============ Claudio habla (v6) ============ */
+.claudio-mini {
+  width: 40px; height: 40px; flex-shrink: 0; cursor: pointer;
+  border: 3px solid var(--negro); border-radius: 50%;
+  box-shadow: 2px 2px 0 var(--negro);
+  transition: transform .12s ease;
+}
+.claudio-mini:active { transform: scale(.88) rotate(-6deg); }
+.appbar .appbar-title { flex: 1; margin: 0 10px; }
+
+/* Bocadillo (globo de diálogo) */
+.bocadillo {
+  position: absolute; left: 16px; right: 16px; top: calc(env(safe-area-inset-top, 0px) + 66px);
+  z-index: 45;
+  background: #fffaf0; border: 3px solid var(--negro); border-radius: 16px;
+  padding: 12px 14px; box-shadow: 5px 5px 0 var(--negro);
+  font-family: var(--body); font-weight: 700; font-size: 15px; color: var(--negro);
+  text-align: center;
+}
+.bocadillo::before {
+  content: ""; position: absolute; top: -12px; left: 30px;
+  border-left: 10px solid transparent; border-right: 10px solid transparent;
+  border-bottom: 12px solid var(--negro);
+}
+.bocadillo::after {
+  content: ""; position: absolute; top: -8px; left: 32px;
+  border-left: 8px solid transparent; border-right: 8px solid transparent;
+  border-bottom: 9px solid #fffaf0;
+}
+.bocadillo.hidden { display: none; }
+.bocadillo.show { animation: bocaPop .3s cubic-bezier(.2,.8,.3,1.4); }
+@keyframes bocaPop { from { opacity: 0; transform: translateY(-8px) scale(.9); } to { opacity: 1; transform: none; } }

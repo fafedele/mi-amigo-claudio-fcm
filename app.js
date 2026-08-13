@@ -52,6 +52,50 @@ document.addEventListener("pointerdown", (e) => {
   else sfx("tap");
 }, true);
 
+/* ---------- Claudio habla (voz grave) ---------- */
+const FRASES_CLAUDIO = [
+  "Uy, qué pobres que están.",
+  "¿Otra vez sin plata, muchachos?",
+  "Miseria pura veo por acá.",
+  "No les alcanza ni para el mate.",
+  "Pobres, pero con estilo, eh.",
+  "Con estos gastos van derecho a la quiebra.",
+  "Cada peso que gastan, yo lloro.",
+  "Esto no es una billetera, es un chiste.",
+  "Junten monedas, a ver si llegan.",
+  "Qué manera de fundirse, señores.",
+  "Ni yo los salvo de esta pobreza.",
+  "Guarden algo, muertos de hambre.",
+  "Trabajen un poco, vagos.",
+];
+let vocesCargadas = [];
+function cargarVoces() { try { vocesCargadas = window.speechSynthesis.getVoices() || []; } catch (e) {} }
+if ("speechSynthesis" in window) {
+  cargarVoces();
+  window.speechSynthesis.onvoiceschanged = cargarVoces;
+}
+function claudioHabla() {
+  const frase = FRASES_CLAUDIO[Math.floor(Math.random() * FRASES_CLAUDIO.length)];
+  mostrarBocadillo(frase);
+  if (navigator.vibrate) navigator.vibrate(12);
+  if (!("speechSynthesis" in window)) return;
+  const u = new SpeechSynthesisUtterance(frase);
+  u.lang = "es-AR"; u.pitch = 0.2; u.rate = 0.9; u.volume = 1;   // grave y lento
+  if (!vocesCargadas.length) cargarVoces();
+  const esMasc = vocesCargadas.find((v) => /^es/i.test(v.lang) && /(male|hombre|jorge|diego|juan|carlos|pablo|miguel)/i.test(v.name));
+  const esCual = esMasc || vocesCargadas.find((v) => /^es/i.test(v.lang));
+  if (esCual) u.voice = esCual;
+  try { window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } catch (e) {}
+}
+function mostrarBocadillo(txt) {
+  const b = document.getElementById("bocadillo");
+  if (!b) return;
+  b.textContent = "🐦 " + txt;
+  b.classList.remove("hidden"); b.classList.add("show");
+  clearTimeout(b._t);
+  b._t = setTimeout(() => { b.classList.remove("show"); b.classList.add("hidden"); }, 3200);
+}
+
 /* ---------- utilidades ---------- */
 const up = (s) => (s == null ? "" : String(s)).toUpperCase();
 const fmtARS = (n) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 }).format(n || 0);
@@ -348,6 +392,12 @@ function renderReminder() {
 function render() { renderTotales(); renderPorId(); renderProximos(); renderTodo(); }
 
 /* ---------- eventos ---------- */
+// Claudio habla al tocar su logo (en Totales y en la pantalla de inicio)
+const logoTot = document.getElementById("claudio-logo");
+if (logoTot) logoTot.addEventListener("click", claudioHabla);
+const logoInicio = document.querySelector("#screen-config .brand-logo");
+if (logoInicio) { logoInicio.style.cursor = "pointer"; logoInicio.addEventListener("click", claudioHabla); }
+
 document.querySelectorAll(".nav-btn").forEach((b) => b.addEventListener("click", () => goScreen(b.dataset.screen)));
 document.getElementById("btn-add-gasto").addEventListener("click", () => document.getElementById("add-gasto-sheet").classList.toggle("hidden"));
 document.getElementById("btn-add-prox").addEventListener("click", () => document.getElementById("add-prox-sheet").classList.toggle("hidden"));
