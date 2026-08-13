@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Claudio FCM">
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <div class="phone">
@@ -44,6 +44,9 @@
       <span class="appbar-title">Gastos totales</span>
       <button id="btn-add-gasto" class="appbar-btn">＋</button>
     </div>
+
+    <div id="reminder-pop" class="reminder hidden"></div>
+
     <div class="hero">
       <span class="hero-label">Total gastado</span>
       <span class="hero-value" id="tot-ars">$0</span>
@@ -52,13 +55,14 @@
         <div class="hero-stat"><span class="hs-label">Movimientos</span><span class="hs-value" id="tot-cant">0</span></div>
       </div>
     </div>
+
     <div id="add-gasto-sheet" class="add-sheet hidden">
       <form id="form-gasto">
         <div class="form-row">
           <input type="date" id="g-fecha" required>
-          <input type="text" id="g-persona" placeholder="ID / persona" required>
+          <input type="text" id="g-persona" placeholder="ID / PERSONA" required>
         </div>
-        <input type="text" id="g-concepto" placeholder="Concepto" required>
+        <input type="text" id="g-concepto" placeholder="CONCEPTO" required>
         <div class="form-row">
           <select id="g-tipo"><option value="egreso">Egreso</option><option value="ingreso">Ingreso</option></select>
           <input type="number" id="g-ars" placeholder="Monto $" step="0.01" required>
@@ -67,9 +71,25 @@
         <button type="submit" class="btn-primary">Agregar gasto</button>
       </form>
     </div>
-    <h3 class="stat-h">Por mes</h3><div class="bars" id="bars-mes"></div>
-    <h3 class="stat-h">Por concepto</h3><div class="bars" id="bars-concepto"></div>
-    <h3 class="stat-h">Detalle</h3><div class="mov-list" id="lista-gastos"></div>
+
+    <div class="collapsible">
+      <button class="col-head" data-target="body-mes">Por mes <span class="chev">▸</span></button>
+      <div class="col-body hidden" id="body-mes"><div class="bars" id="bars-mes"></div></div>
+    </div>
+    <div class="collapsible">
+      <button class="col-head" data-target="body-concepto">Por concepto <span class="chev">▸</span></button>
+      <div class="col-body hidden" id="body-concepto"><div class="bars" id="bars-concepto"></div></div>
+    </div>
+
+    <div class="detalle-head">
+      <h3 class="stat-h">Detalle</h3>
+      <div class="filtros-detalle">
+        <select id="f-mes" class="mini-select"><option value="">Mes: todos</option></select>
+        <select id="f-id" class="mini-select"><option value="">ID: todos</option></select>
+      </div>
+    </div>
+    <p class="hint-mini">Mantené presionado un gasto para editarlo.</p>
+    <div class="mov-list" id="lista-gastos"></div>
   </section>
 
   <!-- POR ID -->
@@ -100,28 +120,72 @@
       <form id="form-prox">
         <div class="form-row">
           <input type="date" id="p-fecha">
-          <input type="text" id="p-persona" placeholder="Responsable (opcional)">
+          <input type="text" id="p-persona" placeholder="RESPONSABLE (OPCIONAL)">
         </div>
-        <input type="text" id="p-concepto" placeholder="Concepto" required>
+        <input type="text" id="p-concepto" placeholder="CONCEPTO" required>
         <div class="form-row">
           <input type="number" id="p-ars" placeholder="Monto $" step="0.01" required>
           <input type="number" id="p-usd" placeholder="USD" step="0.01">
         </div>
-        <input type="text" id="p-nota" placeholder="Nota (opcional)">
+        <input type="text" id="p-nota" placeholder="NOTA (OPCIONAL)">
         <button type="submit" class="btn-primary">Agregar próximo</button>
       </form>
     </div>
     <div class="mov-list" id="lista-prox"></div>
   </section>
 
+  <!-- TO DO -->
+  <section id="screen-todo" class="screen">
+    <div class="appbar">
+      <span class="appbar-title">To Do</span>
+      <button id="btn-add-todo" class="appbar-btn">＋</button>
+    </div>
+    <div class="filters" id="todo-filtros"></div>
+    <div id="add-todo-sheet" class="add-sheet hidden">
+      <form id="form-todo">
+        <div class="form-row">
+          <input type="text" id="t-id" placeholder="ID / PERSONA">
+          <input type="text" id="t-texto" placeholder="TAREA" required>
+        </div>
+        <button type="submit" class="btn-primary">Agregar tarea</button>
+      </form>
+    </div>
+    <div class="mov-list" id="lista-todo"></div>
+  </section>
+
   <nav id="bottom-nav" class="bottom-nav hidden">
     <button class="nav-btn active" data-screen="screen-totales"><img src="assets/icon-stats.svg" alt=""><span>Totales</span></button>
     <button class="nav-btn" data-screen="screen-porid"><img src="assets/icon-movimientos.svg" alt=""><span>Por ID</span></button>
     <button class="nav-btn" data-screen="screen-proximos"><img src="assets/icon-ahorros.svg" alt=""><span>Próximos</span></button>
+    <button class="nav-btn" data-screen="screen-todo"><img src="assets/icon-todo.svg" alt=""><span>To Do</span></button>
   </nav>
+
+  <!-- Modal de edición de gasto -->
+  <div id="edit-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3 class="modal-title">Editar gasto</h3>
+      <form id="form-edit">
+        <div class="form-row">
+          <input type="date" id="e-fecha" required>
+          <input type="text" id="e-persona" placeholder="ID / PERSONA" required>
+        </div>
+        <input type="text" id="e-concepto" placeholder="CONCEPTO" required>
+        <div class="form-row">
+          <select id="e-tipo"><option value="egreso">Egreso</option><option value="ingreso">Ingreso</option></select>
+          <input type="number" id="e-ars" placeholder="Monto $" step="0.01" required>
+          <input type="number" id="e-usd" placeholder="USD" step="0.01">
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="edit-del" class="btn-danger">Eliminar</button>
+          <button type="submit" class="btn-primary">Guardar</button>
+        </div>
+        <button type="button" id="edit-cancel" class="btn-secondary">Cancelar</button>
+      </form>
+    </div>
+  </div>
 
   <div id="sync-badge" class="sync-badge"></div>
 </div>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>
