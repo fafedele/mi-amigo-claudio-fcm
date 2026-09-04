@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Editores
+.vscode/
+.idea/
+*.swp
+
+# Node (por si más adelante se suma tooling)
+node_modules/
+npm-debug.log*
+
+# Nunca commitear secretos
+.env
+.env.*
+*.token
+gh_token*
