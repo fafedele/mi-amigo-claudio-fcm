@@ -509,8 +509,9 @@ document.getElementById("btn-olvidar").addEventListener("click", () => {
   catch (err) { goScreen("screen-config"); document.getElementById("config-msg").textContent = "Reconectá: " + err.message; }
 })();
 
-// Sin service worker (limpia cualquiera viejo)
+// Service worker network-first (ver sw.js). Habilita "Instalar app" en Android.
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())).catch(() => {});
-  if (window.caches) caches.keys().then((ks) => ks.forEach((k) => caches.delete(k))).catch(() => {});
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js?v=7").catch(() => {});
+  });
 }
