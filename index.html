@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Claudio FCM">
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 <div class="phone">
@@ -118,6 +118,53 @@
     <div id="emparejar"></div>
   </section>
 
+  <!-- DEUDAS INTERPERSONALES -->
+  <section id="screen-deudas" class="screen">
+    <div class="appbar">
+      <span class="appbar-title">Deudas</span>
+      <button id="btn-add-pago" class="appbar-btn" aria-label="Registrar pago">＋</button>
+    </div>
+
+    <div class="hero">
+      <span class="hero-label">Le toca a cada uno</span>
+      <span class="hero-value" id="deu-base">$0</span>
+      <div class="hero-stats">
+        <div class="hero-stat"><span class="hs-label">Total repartido</span><span class="hs-value" id="deu-total">$0</span></div>
+        <div class="hero-stat"><span class="hs-label">Fuera del reparto</span><span class="hs-value" id="deu-fuera">$0</span></div>
+      </div>
+    </div>
+
+    <h3 class="stat-h">Quiénes reparten</h3>
+    <p class="hint-mini">Tocá para incluir o excluir. Lo que puso quien queda afuera no se reparte.</p>
+    <div class="filters" id="deu-grupo"></div>
+
+    <div id="add-pago-sheet" class="add-sheet hidden">
+      <form id="form-pago">
+        <div class="form-row">
+          <input type="date" id="pg-fecha">
+          <input type="number" id="pg-ars" placeholder="Monto $" step="0.01" required>
+        </div>
+        <div class="form-row">
+          <input type="text" id="pg-de" placeholder="PAGA (ID)" required>
+          <input type="text" id="pg-a" placeholder="COBRA (ID)" required>
+        </div>
+        <input type="text" id="pg-nota" placeholder="NOTA (OPCIONAL)">
+        <button type="submit" class="btn-primary">Registrar pago</button>
+        <p id="pago-msg" class="leer-msg"></p>
+      </form>
+    </div>
+
+    <h3 class="stat-h">Quién le paga a quién</h3>
+    <p class="hint-mini">Mínimo de transferencias para que queden todos a mano.</p>
+    <div id="deu-tx"></div>
+
+    <h3 class="stat-h">Balance</h3>
+    <div id="deu-balance"></div>
+
+    <h3 class="stat-h">Pagos registrados</h3>
+    <div class="mov-list" id="lista-pagos"></div>
+  </section>
+
   <!-- PRÓXIMOS -->
   <section id="screen-proximos" class="screen">
     <div class="appbar">
@@ -172,6 +219,7 @@
   <nav id="bottom-nav" class="bottom-nav hidden">
     <button class="nav-btn active" data-screen="screen-totales"><img src="assets/icon-stats.svg" alt=""><span>Totales</span></button>
     <button class="nav-btn" data-screen="screen-porid"><img src="assets/icon-movimientos.svg" alt=""><span>Por ID</span></button>
+    <button class="nav-btn" data-screen="screen-deudas"><img src="assets/icon-deudas.svg" alt=""><span>Deudas</span></button>
     <button class="nav-btn" data-screen="screen-proximos"><img src="assets/icon-ahorros.svg" alt=""><span>Próximos</span></button>
     <button class="nav-btn" data-screen="screen-todo"><img src="assets/icon-todo.svg" alt=""><span>To Do</span></button>
   </nav>
@@ -203,6 +251,6 @@
   <div id="sync-badge" class="sync-badge"></div>
   <div id="bocadillo" class="bocadillo hidden"></div>
 </div>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

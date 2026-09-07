@@ -188,6 +188,44 @@ body {
 }
 .btn-volver:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 var(--negro); }
 
+/* ---- Deudas interpersonales ---- */
+.tx-row {
+  display: flex; align-items: center; gap: 12px;
+  background: #fffaf0;
+  border: 3px solid var(--negro);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  box-shadow: 3px 3px 0 var(--negro);
+}
+.tx-body { flex: 1; min-width: 0; }
+.tx-quien { font-family: var(--display); font-size: 14px; color: var(--negro); }
+.tx-flecha { color: var(--rojo); margin: 0 4px; }
+.tx-monto { font-family: var(--display); font-size: 17px; color: var(--rojo); margin-top: 3px; }
+.tx-btn {
+  flex-shrink: 0;
+  font-family: var(--display); font-size: 12px;
+  padding: 10px 12px;
+  background: var(--oro); color: var(--negro);
+  border: 2.5px solid var(--negro); border-radius: 10px;
+  box-shadow: 2px 2px 0 var(--negro);
+  cursor: pointer;
+}
+.tx-btn:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 var(--negro); }
+.deu-ok {
+  font-family: var(--display); font-size: 14px; color: var(--verde);
+  background: #fffaf0; border: 3px solid var(--negro); border-radius: 14px;
+  padding: 14px; margin: 0 0 10px; text-align: center;
+  box-shadow: 3px 3px 0 var(--negro);
+}
+.bal-track {
+  height: 14px; background: var(--crema-osc);
+  border: 2.5px solid var(--negro); border-radius: 8px;
+  overflow: hidden; margin: 6px 0 4px;
+}
+.bal-fill { height: 100%; }
+.bal-fill.neg { opacity: 0.55; }
+
 /* ---- App bar ---- */
 .appbar {
   display: flex; align-items: center; justify-content: space-between;

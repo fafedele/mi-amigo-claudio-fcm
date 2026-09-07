@@ -7,7 +7,7 @@ const API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${
 const COLORES = ["#C63D28", "#2C5F8A", "#8E4585", "#3F9B4E", "#E0A82E", "#3A3A3A"];
 const GRUPO_EMPAREJAR = ["FEFE", "MARCO", "CODA"];
 
-let estado = { gastos: [], proximos: [], todos: [] };
+let estado = { gastos: [], proximos: [], todos: [], pagos: [], grupo: [] };
 let sha = null;
 let token = localStorage.getItem("gh_token") || "";
 let filtroMes = "", filtroId = "", todoFiltro = "", editId = null;
@@ -135,7 +135,11 @@ async function cargarDatos() {
   const j = await r.json();
   sha = j.sha;
   const data = JSON.parse(b64decode(j.content));
-  estado = { gastos: data.gastos || [], proximos: data.proximos || [], todos: data.todos || [] };
+  estado = {
+    gastos: data.gastos || [], proximos: data.proximos || [], todos: data.todos || [],
+    pagos: data.pagos || [],   // transferencias ya hechas entre personas
+    grupo: data.grupo || [],   // quienes reparten; vacio = GRUPO_EMPAREJAR
+  };
 }
 // Devuelve true si el PUT entro. Si falla, avisa, recarga el estado real del repo y devuelve false:
 // nunca deja la UI mostrando un cambio que el repo no tiene.
@@ -171,7 +175,7 @@ function goScreen(id) {
   document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
   const nav = document.getElementById("bottom-nav");
-  const conNav = ["screen-totales", "screen-porid", "screen-proximos", "screen-todo"].includes(id);
+  const conNav = ["screen-totales", "screen-porid", "screen-deudas", "screen-proximos", "screen-todo"].includes(id);
   nav.classList.toggle("hidden", !conNav);
   document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.screen === id));
   const volver = document.getElementById("btn-volver");
@@ -327,6 +331,129 @@ function renderEmparejar() {
   cont.innerHTML = html;
 }
 
+/* ---------- Deudas interpersonales ---------- */
+// Quienes entran al reparto. GRUPO_EMPAREJAR es solo el default historico.
+function participantes() {
+  return estado.grupo && estado.grupo.length ? estado.grupo.slice() : GRUPO_EMPAREJAR.slice();
+}
+
+function calcDeudas() {
+  const grupo = participantes(), dentro = new Set(grupo);
+  const puesto = {};
+  grupo.forEach((p) => { puesto[p] = 0; });
+
+  // Lo que puso cada uno. Lo de quien no participa no se reparte: se muestra aparte.
+  let fuera = 0;
+  estado.gastos.filter(esEgreso).forEach((g) => {
+    const k = up(g.id_persona), m = Number(g.monto_ars || 0);
+    if (dentro.has(k)) puesto[k] += m; else fuera += m;
+  });
+
+  const total = grupo.reduce((s, p) => s + puesto[p], 0);
+  const base = grupo.length ? total / grupo.length : 0;
+
+  // Balance = puso - le tocaba. Un pago ya hecho corrige a los dos lados:
+  // quien pagó aportó de más, quien cobró recuperó.
+  const bal = {};
+  grupo.forEach((p) => { bal[p] = puesto[p] - base; });
+  estado.pagos.forEach((x) => {
+    const de = up(x.de), a = up(x.a), m = Number(x.monto_ars || 0);
+    if (dentro.has(de)) bal[de] += m;
+    if (dentro.has(a)) bal[a] -= m;
+  });
+
+  // Liquidación greedy: el que más debe le paga al que más puso, hasta saldar.
+  // Da el mínimo práctico de transferencias.
+  const deben  = grupo.filter((p) => bal[p] < -0.5).map((p) => ({ p, m: -bal[p] })).sort((x, y) => y.m - x.m);
+  const cobran = grupo.filter((p) => bal[p] >  0.5).map((p) => ({ p, m:  bal[p] })).sort((x, y) => y.m - x.m);
+  const tx = [];
+  let i = 0, j = 0;
+  while (i < deben.length && j < cobran.length) {
+    const m = Math.min(deben[i].m, cobran[j].m);
+    if (m > 0.5) tx.push({ de: deben[i].p, a: cobran[j].p, monto: m });
+    deben[i].m -= m; cobran[j].m -= m;
+    if (deben[i].m <= 0.5) i++;
+    if (cobran[j].m <= 0.5) j++;
+  }
+  return { grupo, puesto, total, base, bal, tx, fuera };
+}
+
+function renderDeudas() {
+  const { grupo, puesto, total, base, bal, tx, fuera } = calcDeudas();
+  document.getElementById("deu-base").textContent = fmtARS(base);
+  document.getElementById("deu-total").textContent = fmtARS(total);
+  document.getElementById("deu-fuera").textContent = fmtARS(fuera);
+
+  // Chips: todo id_persona que aparezca en gastos, se incluye o excluye a mano.
+  const todosIds = [...new Set(estado.gastos.filter(esEgreso).map((g) => up(g.id_persona)).filter(Boolean))];
+  grupo.forEach((p) => { if (!todosIds.includes(p)) todosIds.push(p); });
+  const chips = document.getElementById("deu-grupo");
+  chips.innerHTML = todosIds.map((x) =>
+    `<button class="chip ${grupo.includes(x) ? "active" : ""}" data-p="${x}">${x}</button>`).join("");
+  chips.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", async () => {
+    const p = c.dataset.p, g = participantes();
+    estado.grupo = g.includes(p) ? g.filter((y) => y !== p) : g.concat(p);
+    render(); await guardarDatos("Actualiza grupo de reparto FCM");
+  }));
+
+  // Transferencias sugeridas. Cada una se puede registrar de un toque.
+  const cont = document.getElementById("deu-tx");
+  cont.innerHTML = "";
+  tx.forEach((t) => {
+    const row = document.createElement("div");
+    row.className = "tx-row";
+    row.innerHTML = `<div class="tx-body">
+        <div class="tx-quien"><b>${t.de}</b> <span class="tx-flecha">→</span> <b>${t.a}</b></div>
+        <div class="tx-monto">${fmtARS(t.monto)}</div>
+      </div>
+      <button class="tx-btn">Registrar</button>`;
+    row.querySelector(".tx-btn").addEventListener("click", () => {
+      document.getElementById("pg-de").value = t.de;
+      document.getElementById("pg-a").value = t.a;
+      document.getElementById("pg-ars").value = Math.round(t.monto);
+      document.getElementById("pg-fecha").value = new Date().toISOString().slice(0, 10);
+      document.getElementById("add-pago-sheet").classList.remove("hidden");
+      document.getElementById("add-pago-sheet").scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    cont.appendChild(row);
+  });
+  if (!tx.length) cont.innerHTML = '<p class="deu-ok">Todos a mano. No hay deudas pendientes.</p>';
+
+  // Balance individual
+  const cb = document.getElementById("deu-balance");
+  cb.innerHTML = "";
+  const max = Math.max(...grupo.map((p) => Math.abs(bal[p])), 1);
+  grupo.forEach((p, i) => {
+    const b = bal[p], pct = Math.max((Math.abs(b) / max) * 100, 3);
+    const est = b < -0.5 ? `<span class="empar-badge falta">Debe ${fmtARS(-b)}</span>`
+      : b > 0.5 ? `<span class="empar-badge favor">Le deben ${fmtARS(b)}</span>`
+      : `<span class="empar-badge ok">Al día</span>`;
+    cb.innerHTML += `<div class="empar-row">
+      <div class="empar-top"><span class="empar-name">${p}</span>${est}</div>
+      <div class="bal-track"><div class="bal-fill ${b < 0 ? "neg" : "pos"}" style="width:${pct}%;background:${COLORES[i % COLORES.length]}"></div></div>
+      <div class="empar-val">Puso ${fmtARS(puesto[p])}</div></div>`;
+  });
+
+  // Pagos ya registrados
+  const lp = document.getElementById("lista-pagos");
+  lp.innerHTML = "";
+  estado.pagos.slice().sort((a, b) => (b.fecha || "").localeCompare(a.fecha || "")).forEach((x) => {
+    const row = document.createElement("div");
+    row.className = "mov-item";
+    row.innerHTML = `<div class="mov-avatar">💸</div>
+      <div class="mov-info"><div class="mov-desc">${up(x.de)} → ${up(x.a)}</div>
+        <div class="mov-meta">${x.fecha || "SIN FECHA"}${x.nota ? " · " + up(x.nota) : ""}</div></div>
+      <div class="mov-right"><div class="mov-amount ingreso">${fmtARS(x.monto_ars)}</div></div>
+      <button class="mov-del" data-id="${x.id}">✕</button>`;
+    row.querySelector(".mov-del").addEventListener("click", async () => {
+      estado.pagos = estado.pagos.filter((y) => y.id != x.id);
+      render(); await guardarDatos("Elimina pago FCM");
+    });
+    lp.appendChild(row);
+  });
+  if (!estado.pagos.length) lp.innerHTML = '<p style="color:var(--antracita);font-size:13px;padding:6px 2px">Sin pagos registrados.</p>';
+}
+
 /* ---------- Próximos ---------- */
 function renderProximos() {
   const items = estado.proximos;
@@ -411,7 +538,7 @@ function renderReminder() {
 }
 
 /* ---------- render global ---------- */
-function render() { renderTotales(); renderPorId(); renderProximos(); renderTodo(); pintarJSON(); }
+function render() { renderTotales(); renderPorId(); renderDeudas(); renderProximos(); renderTodo(); pintarJSON(); }
 
 /* ---------- eventos ---------- */
 // Claudio habla al tocar su logo (en Totales y en la pantalla de inicio)
@@ -505,6 +632,25 @@ document.getElementById("form-todo").addEventListener("submit", async (e) => {
   sfx("add"); renderTodo(); await guardarDatos("Agrega tarea FCM");
 });
 
+// Deudas: alta manual de un pago entre dos personas
+document.getElementById("btn-add-pago").addEventListener("click", () => document.getElementById("add-pago-sheet").classList.toggle("hidden"));
+document.getElementById("form-pago").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const de = up(document.getElementById("pg-de").value), a = up(document.getElementById("pg-a").value);
+  const msg = document.getElementById("pago-msg");
+  if (de === a) { msg.textContent = "El que paga y el que cobra no pueden ser el mismo."; return; }
+  msg.textContent = "";
+  estado.pagos.push({
+    id: nextId(estado.pagos),
+    fecha: document.getElementById("pg-fecha").value || new Date().toISOString().slice(0, 10),
+    de, a,
+    monto_ars: parseFloat(document.getElementById("pg-ars").value) || 0,
+    nota: up(document.getElementById("pg-nota").value),
+  });
+  e.target.reset(); document.getElementById("add-pago-sheet").classList.add("hidden");
+  sfx("add"); render(); await guardarDatos("Registra pago FCM");
+});
+
 // Backup local: sacar los datos del dispositivo sin depender de la API ni del token
 document.getElementById("btn-datos").addEventListener("click", () => { pintarJSON(); goScreen("screen-config"); });
 document.getElementById("btn-volver").addEventListener("click", () => goScreen("screen-totales"));
@@ -562,6 +708,6 @@ document.getElementById("btn-olvidar").addEventListener("click", () => {
 // Service worker network-first (ver sw.js). Habilita "Instalar app" en Android.
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js?v=8").catch(() => {});
+    navigator.serviceWorker.register("sw.js?v=9").catch(() => {});
   });
 }

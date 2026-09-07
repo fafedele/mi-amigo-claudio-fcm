@@ -25,6 +25,19 @@ Fine-grained PAT, acotado a **`control-de-egresos` únicamente**, con:
 
 Nada más. Si el token se filtra, el daño queda contenido en ese repo.
 
+## Deudas interpersonales
+
+Solapa **Deudas**. A diferencia de *Emparejar* (que dice cuánto le falta a cada uno contra el promedio), acá sale **quién le transfiere a quién y cuánto**.
+
+- **Balance** de cada participante = lo que puso − lo que le tocaba.
+- **Liquidación greedy**: el que más debe le paga al que más puso, hasta saldar. Da el mínimo práctico de transferencias (con 1 acreedor y 2 deudores, 2 transferencias).
+- **Quiénes reparten**: chips para incluir o excluir personas a mano. Se persiste en `grupo[]`. Vacío = el default histórico `GRUPO_EMPAREJAR`. Lo que puso quien queda afuera **no se reparte** y se muestra en *Fuera del reparto*, para que no desaparezca sin dejar rastro.
+- **Pagos**: cada transferencia sugerida tiene *Registrar*, que precarga el formulario. También se cargan a mano. Se guardan en `pagos[]` y corrigen el balance de los dos lados: quien pagó aportó de más, quien cobró recuperó.
+
+Schema nuevo en `fcm-data.json`: `pagos[]` y `grupo[]`. Ambos opcionales — un archivo viejo sin esas claves carga igual.
+
+> **Ojo:** una versión de la app anterior a la v9 no conoce esas claves y las borraría al guardar. El service worker es network-first, así que con red cualquier dispositivo toma la v9 al abrir; el riesgo es solo un dispositivo offline con caché vieja.
+
 ## Backup de datos
 
 En **Totales → ⚙** está la copia local de `fcm-data.json`: **Copiar JSON** (portapapeles) y **Descargar** (archivo). No pasa por la API ni necesita red — sale del estado ya cargado en memoria.
