@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Claudio FCM">
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
 <div class="phone">
@@ -19,6 +19,7 @@
 
   <!-- CONFIG / TOKEN -->
   <section id="screen-config" class="screen active">
+    <button id="btn-volver" class="btn-volver hidden">← Volver</button>
     <div class="brand">
       <img class="brand-logo" src="assets/logo.png" alt="Claudio">
       <h1>Gastos compartidos</h1>
@@ -35,6 +36,17 @@
       </form>
       <p id="config-msg" class="leer-msg"></p>
     </div>
+    <div class="add-sheet">
+      <h3 class="stat-h" style="margin:0 0 4px">Backup de datos</h3>
+      <p class="hint-mini">Copia exacta de <b>fcm-data.json</b>. Sirve para respaldar o para mover los datos a otro lado.</p>
+      <div class="form-row">
+        <button type="button" id="btn-copiar" class="btn-secondary">Copiar JSON</button>
+        <button type="button" id="btn-descargar" class="btn-secondary">Descargar</button>
+      </div>
+      <textarea id="datos-json" class="datos-json" rows="7" readonly spellcheck="false" placeholder="Conectate para ver tus datos."></textarea>
+      <p id="datos-msg" class="leer-msg"></p>
+    </div>
+
     <button id="btn-olvidar" class="btn-secondary" style="margin-top:auto">Olvidar token de este dispositivo</button>
   </section>
 
@@ -43,7 +55,10 @@
     <div class="appbar">
       <img class="claudio-mini" id="claudio-logo" src="assets/logo.png" alt="Claudio" title="Tocá a Claudio">
       <span class="appbar-title">Gastos totales</span>
-      <button id="btn-add-gasto" class="appbar-btn">＋</button>
+      <div class="appbar-right">
+        <button id="btn-datos" class="appbar-btn" aria-label="Datos y token">⚙</button>
+        <button id="btn-add-gasto" class="appbar-btn" aria-label="Agregar gasto">＋</button>
+      </div>
     </div>
 
     <div id="reminder-pop" class="reminder hidden"></div>
@@ -188,6 +203,6 @@
   <div id="sync-badge" class="sync-badge"></div>
   <div id="bocadillo" class="bocadillo hidden"></div>
 </div>
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

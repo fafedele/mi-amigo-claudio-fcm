@@ -114,6 +114,15 @@ function badge(txt, ok) {
   b._t = setTimeout(() => { b.className = "sync-badge"; }, 2500);
 }
 
+/* ---------- JSON canonico (lo que se sube al repo y lo que se exporta) ---------- */
+function jsonActual() {
+  return JSON.stringify({ ...estado, actualizado: new Date().toISOString().slice(0, 10) }, null, 2);
+}
+function pintarJSON() {
+  const ta = document.getElementById("datos-json");
+  if (ta) ta.value = token ? jsonActual() : "";
+}
+
 /* ---------- GitHub API ---------- */
 async function cargarDatos() {
   const r = await fetch(API + "?ref=main&t=" + Date.now(), {
@@ -128,22 +137,33 @@ async function cargarDatos() {
   const data = JSON.parse(b64decode(j.content));
   estado = { gastos: data.gastos || [], proximos: data.proximos || [], todos: data.todos || [] };
 }
+// Devuelve true si el PUT entro. Si falla, avisa, recarga el estado real del repo y devuelve false:
+// nunca deja la UI mostrando un cambio que el repo no tiene.
 async function guardarDatos(mensaje) {
   badge("Guardando…");
-  const body = {
+  const headers = { Authorization: "Bearer " + token, Accept: "application/vnd.github+json" };
+  const cuerpo = JSON.stringify({
     message: mensaje || "Actualiza FCM",
-    content: b64encode(JSON.stringify({ ...estado, actualizado: new Date().toISOString().slice(0, 10) }, null, 2)),
+    content: b64encode(jsonActual()),
     branch: "main",
-  };
-  if (sha) body.sha = sha;
-  const r = await fetch(API, {
-    method: "PUT",
-    headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github+json" },
-    body: JSON.stringify(body),
+    ...(sha ? { sha } : {}),
   });
-  if (!r.ok) { badge("No se pudo guardar", false); throw new Error("PUT " + r.status); }
+  const r = await fetch(API, { method: "PUT", headers, body: cuerpo });
+
+  if (!r.ok) {
+    // 409/422 = el sha quedo viejo: otro dispositivo guardo primero. No reintentamos a ciegas,
+    // porque un PUT con el sha fresco pisaria lo que el otro acaba de escribir.
+    const conflicto = r.status === 409 || r.status === 422;
+    badge(conflicto ? "Otro dispositivo guardó primero" : "No se pudo guardar", false);
+    // La UI ya pinto el cambio local: volvemos al estado real del repo para no mostrar datos fantasma.
+    try { await cargarDatos(); render(); } catch (e) {}
+    // No relanzamos: ningun llamador lo captura y el fallo ya quedo avisado y resincronizado.
+    return false;
+  }
   sha = (await r.json()).content.sha;
   badge("Guardado ✓");
+  pintarJSON();
+  return true;
 }
 
 /* ---------- navegación ---------- */
@@ -154,6 +174,8 @@ function goScreen(id) {
   const conNav = ["screen-totales", "screen-porid", "screen-proximos", "screen-todo"].includes(id);
   nav.classList.toggle("hidden", !conNav);
   document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.screen === id));
+  const volver = document.getElementById("btn-volver");
+  if (volver) volver.classList.toggle("hidden", !(id === "screen-config" && token));
 }
 
 /* ---------- long-press ---------- */
@@ -203,7 +225,7 @@ function renderTotales() {
   const egresos = estado.gastos.filter(esEgreso);
   document.getElementById("tot-ars").textContent = fmtARS(egresos.reduce((s, x) => s + Number(x.monto_ars || 0), 0));
   document.getElementById("tot-usd").textContent = fmtUSD(egresos.reduce((s, x) => s + Number(x.monto_usd || 0), 0));
-  document.getElementById("tot-cant").textContent = estado.gastos.length;
+  document.getElementById("tot-cant").textContent = egresos.length;
   renderBars("bars-mes", agrupar(egresos, (x) => up(x.mes)));
   renderBars("bars-concepto", agrupar(egresos, (x) => up(x.concepto)));
   opcionesFiltro();
@@ -389,7 +411,7 @@ function renderReminder() {
 }
 
 /* ---------- render global ---------- */
-function render() { renderTotales(); renderPorId(); renderProximos(); renderTodo(); }
+function render() { renderTotales(); renderPorId(); renderProximos(); renderTodo(); pintarJSON(); }
 
 /* ---------- eventos ---------- */
 // Claudio habla al tocar su logo (en Totales y en la pantalla de inicio)
@@ -483,6 +505,34 @@ document.getElementById("form-todo").addEventListener("submit", async (e) => {
   sfx("add"); renderTodo(); await guardarDatos("Agrega tarea FCM");
 });
 
+// Backup local: sacar los datos del dispositivo sin depender de la API ni del token
+document.getElementById("btn-datos").addEventListener("click", () => { pintarJSON(); goScreen("screen-config"); });
+document.getElementById("btn-volver").addEventListener("click", () => goScreen("screen-totales"));
+
+document.getElementById("btn-copiar").addEventListener("click", async () => {
+  const ta = document.getElementById("datos-json"), msg = document.getElementById("datos-msg");
+  if (!ta.value) { msg.textContent = "No hay datos cargados."; return; }
+  try {
+    await navigator.clipboard.writeText(ta.value);
+    msg.textContent = "Copiado al portapapeles ✓";
+  } catch (e) {
+    // iOS en standalone suele bloquear la Clipboard API: dejamos el texto seleccionado para copiar a mano.
+    ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length);
+    msg.textContent = "Seleccionado: copiá desde el menú del teclado.";
+  }
+});
+
+document.getElementById("btn-descargar").addEventListener("click", () => {
+  const msg = document.getElementById("datos-msg");
+  if (!token) { msg.textContent = "No hay datos cargados."; return; }
+  const url = URL.createObjectURL(new Blob([jsonActual()], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = `fcm-data-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  msg.textContent = "Descargado ✓";
+});
+
 // Token
 document.getElementById("form-token").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -512,6 +562,6 @@ document.getElementById("btn-olvidar").addEventListener("click", () => {
 // Service worker network-first (ver sw.js). Habilita "Instalar app" en Android.
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js?v=7").catch(() => {});
+    navigator.serviceWorker.register("sw.js?v=8").catch(() => {});
   });
 }

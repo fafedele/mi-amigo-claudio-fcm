@@ -2,7 +2,7 @@
 // Elegido a propósito: si hay red, gana la red (y refresca la caché), así las
 // actualizaciones se ven siempre. Sin red, sirve lo último cacheado.
 // Al bumpear CACHE se borran automáticamente las versiones viejas.
-const CACHE = "claudio-fcm-v7";
+const CACHE = "claudio-fcm-v8";
 const ASSETS = [
   "./",
   "./index.html",

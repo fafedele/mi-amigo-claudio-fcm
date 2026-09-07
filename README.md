@@ -25,6 +25,18 @@ Fine-grained PAT, acotado a **`control-de-egresos` únicamente**, con:
 
 Nada más. Si el token se filtra, el daño queda contenido en ese repo.
 
+## Backup de datos
+
+En **Totales → ⚙** está la copia local de `fcm-data.json`: **Copiar JSON** (portapapeles) y **Descargar** (archivo). No pasa por la API ni necesita red — sale del estado ya cargado en memoria.
+
+Sirve para respaldar, para mover los datos a otro lado, o para leerlos desde fuera de la app sin dar acceso al repo privado.
+
+## Concurrencia
+
+El `sha` funciona como optimistic locking. Si otro dispositivo guardó primero, el `PUT` vuelve 409/422 y la app **no reintenta**: un `PUT` con el `sha` fresco pisaría lo que el otro acaba de escribir. En su lugar avisa (*"Otro dispositivo guardó primero"*), recarga el estado real del repo y vuelve a renderizar, así la pantalla nunca muestra un cambio que el repo no tiene. El dato que estabas cargando se pierde y hay que reingresarlo.
+
+`guardarDatos()` devuelve `true`/`false` en vez de tirar excepción — ningún llamador la capturaba.
+
 ## Estructura
 
 ```
