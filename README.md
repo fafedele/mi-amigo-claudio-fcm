@@ -34,7 +34,13 @@ Solapa **Deudas**. A diferencia de *Emparejar* (que dice cuánto le falta a cada
 - **Quiénes reparten**: chips para incluir o excluir personas a mano. Se persiste en `grupo[]`. Vacío = el default histórico `GRUPO_EMPAREJAR`. Lo que puso quien queda afuera **no se reparte** y se muestra en *Fuera del reparto*, para que no desaparezca sin dejar rastro.
 - **Pagos**: cada transferencia sugerida tiene *Registrar*, que precarga el formulario. También se cargan a mano. Se guardan en `pagos[]` y corrigen el balance de los dos lados: quien pagó aportó de más, quien cobró recuperó.
 
-Schema nuevo en `fcm-data.json`: `pagos[]` y `grupo[]`. Ambos opcionales — un archivo viejo sin esas claves carga igual.
+### Fijar un saldo a mano
+
+Tocá a una persona en **Balance** y el modal deja escribir cuánto **debe** o cuánto **le deben**, sin depender de los gastos. Queda marcada con el tag *a mano* y su saldo deja de recalcularse; *Volver al cálculo* la devuelve al automático. Los pagos registrados se siguen descontando sobre el valor fijado.
+
+Con saldos a mano la suma puede no dar cero: lo que se debe deja de coincidir con lo que se cobra. Eso **no se reparte a la fuerza** — se avisa el descuadre y se nombra a quién le queda saldo sin contraparte, porque la liquidación greedy salda primero al acreedor más grande y con un ledger desbalanceado los chicos quedan en cero.
+
+Schema nuevo en `fcm-data.json`: `pagos[]`, `grupo[]` y `ajustes{}`. Todos opcionales — un archivo viejo sin esas claves carga igual.
 
 > **Ojo:** una versión de la app anterior a la v9 no conoce esas claves y las borraría al guardar. El service worker es network-first, así que con red cualquier dispositivo toma la v9 al abrir; el riesgo es solo un dispositivo offline con caché vieja.
 

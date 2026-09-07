@@ -7,10 +7,10 @@ const API = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${
 const COLORES = ["#C63D28", "#2C5F8A", "#8E4585", "#3F9B4E", "#E0A82E", "#3A3A3A"];
 const GRUPO_EMPAREJAR = ["FEFE", "MARCO", "CODA"];
 
-let estado = { gastos: [], proximos: [], todos: [], pagos: [], grupo: [] };
+let estado = { gastos: [], proximos: [], todos: [], pagos: [], grupo: [], ajustes: {} };
 let sha = null;
 let token = localStorage.getItem("gh_token") || "";
-let filtroMes = "", filtroId = "", todoFiltro = "", editId = null;
+let filtroMes = "", filtroId = "", todoFiltro = "", editId = null, ajusteP = null;
 
 /* ---------- sonidos retro (8-bit) ---------- */
 let audioCtx;
@@ -139,6 +139,7 @@ async function cargarDatos() {
     gastos: data.gastos || [], proximos: data.proximos || [], todos: data.todos || [],
     pagos: data.pagos || [],   // transferencias ya hechas entre personas
     grupo: data.grupo || [],   // quienes reparten; vacio = GRUPO_EMPAREJAR
+    ajustes: data.ajustes || {}, // balance fijado a mano por persona; ausente = calculado
   };
 }
 // Devuelve true si el PUT entro. Si falla, avisa, recarga el estado real del repo y devuelve false:
@@ -354,8 +355,9 @@ function calcDeudas() {
 
   // Balance = puso - le tocaba. Un pago ya hecho corrige a los dos lados:
   // quien pagó aportó de más, quien cobró recuperó.
-  const bal = {};
-  grupo.forEach((p) => { bal[p] = puesto[p] - base; });
+  // Balance base: lo calculado, salvo que lo hayas fijado a mano para esa persona.
+  const bal = {}, aj = estado.ajustes || {};
+  grupo.forEach((p) => { bal[p] = (p in aj) ? Number(aj[p]) || 0 : puesto[p] - base; });
   estado.pagos.forEach((x) => {
     const de = up(x.de), a = up(x.a), m = Number(x.monto_ars || 0);
     if (dentro.has(de)) bal[de] += m;
@@ -375,11 +377,39 @@ function calcDeudas() {
     if (deben[i].m <= 0.5) i++;
     if (cobran[j].m <= 0.5) j++;
   }
-  return { grupo, puesto, total, base, bal, tx, fuera };
+  // Con balances a mano la suma puede no dar cero: lo que se debe no coincide con
+  // lo que se cobra. No lo repartimos a la fuerza, lo mostramos.
+  const descuadre = grupo.reduce((sum, p) => sum + bal[p], 0);
+
+  // Si no cuadra, el greedy salda al acreedor mas grande y deja a otros sin
+  // contraparte. Sacamos el remanente por persona para poder nombrarlo.
+  const sinCubrir = [];
+  grupo.forEach((p) => {
+    const cubierto = tx.reduce((sm, t) => sm + (t.a === p || t.de === p ? t.monto : 0), 0);
+    const resto = Math.abs(bal[p]) - cubierto;
+    if (resto > 0.5) sinCubrir.push({ p, monto: resto, cobra: bal[p] > 0 });
+  });
+  return { grupo, puesto, total, base, bal, tx, fuera, descuadre, sinCubrir, manual: aj };
 }
 
+function abrirAjuste(p) {
+  const { puesto, base, manual } = calcDeudas();
+  ajusteP = p;
+  const fijado = p in manual;
+  const v = fijado ? Number(manual[p]) || 0 : puesto[p] - base;
+  document.getElementById("aj-quien").textContent = p;
+  document.getElementById("aj-tipo").value = v < 0 ? "debe" : "le-deben";
+  document.getElementById("aj-monto").value = Math.abs(Math.round(v));
+  document.getElementById("aj-hint").textContent = fijado
+    ? "Fijado a mano. Los pagos que registres se siguen descontando."
+    : "Sale de los gastos. Si lo fijás, deja de recalcularse solo.";
+  document.getElementById("aj-auto").classList.toggle("hidden", !fijado);
+  document.getElementById("ajuste-modal").classList.remove("hidden");
+}
+function cerrarAjuste() { document.getElementById("ajuste-modal").classList.add("hidden"); ajusteP = null; }
+
 function renderDeudas() {
-  const { grupo, puesto, total, base, bal, tx, fuera } = calcDeudas();
+  const { grupo, puesto, total, base, bal, tx, fuera, descuadre, sinCubrir, manual } = calcDeudas();
   document.getElementById("deu-base").textContent = fmtARS(base);
   document.getElementById("deu-total").textContent = fmtARS(total);
   document.getElementById("deu-fuera").textContent = fmtARS(fuera);
@@ -419,6 +449,17 @@ function renderDeudas() {
   });
   if (!tx.length) cont.innerHTML = '<p class="deu-ok">Todos a mano. No hay deudas pendientes.</p>';
 
+  // Si fijaste montos que no cierran, el reparto deja un resto. Decirlo, no esconderlo.
+  const av = document.getElementById("deu-descuadre");
+  if (Math.abs(descuadre) > 0.5) {
+    av.innerHTML = `<b>Descuadre de ${fmtARS(Math.abs(descuadre))}.</b> ` + (descuadre > 0
+      ? "Lo que figura a favor supera lo que se debe: falta cargar deuda o sobra crédito."
+      : "Lo que se debe supera lo que figura a favor: falta cargar crédito o sobra deuda.")
+      + (sinCubrir.length ? `<div class="deu-aviso-sub">Sin contraparte: ` +
+          sinCubrir.map((x) => `${x.p} ${x.cobra ? "cobra" : "debe"} ${fmtARS(x.monto)} que no aparece en ninguna transferencia`).join(" · ") + `</div>` : "");
+    av.classList.remove("hidden");
+  } else av.classList.add("hidden");
+
   // Balance individual
   const cb = document.getElementById("deu-balance");
   cb.innerHTML = "";
@@ -428,11 +469,13 @@ function renderDeudas() {
     const est = b < -0.5 ? `<span class="empar-badge falta">Debe ${fmtARS(-b)}</span>`
       : b > 0.5 ? `<span class="empar-badge favor">Le deben ${fmtARS(b)}</span>`
       : `<span class="empar-badge ok">Al día</span>`;
-    cb.innerHTML += `<div class="empar-row">
-      <div class="empar-top"><span class="empar-name">${p}</span>${est}</div>
+    const tag = (p in manual) ? '<span class="bal-manual">a mano</span>' : "";
+    cb.innerHTML += `<div class="empar-row bal-row" data-p="${p}">
+      <div class="empar-top"><span class="empar-name">${p}${tag}</span>${est}</div>
       <div class="bal-track"><div class="bal-fill ${b < 0 ? "neg" : "pos"}" style="width:${pct}%;background:${COLORES[i % COLORES.length]}"></div></div>
-      <div class="empar-val">Puso ${fmtARS(puesto[p])}</div></div>`;
+      <div class="empar-val">Puso ${fmtARS(puesto[p])} · tocá para fijarlo a mano</div></div>`;
   });
+  cb.querySelectorAll(".bal-row").forEach((r) => r.addEventListener("click", () => abrirAjuste(r.dataset.p)));
 
   // Pagos ya registrados
   const lp = document.getElementById("lista-pagos");
@@ -632,6 +675,22 @@ document.getElementById("form-todo").addEventListener("submit", async (e) => {
   sfx("add"); renderTodo(); await guardarDatos("Agrega tarea FCM");
 });
 
+// Deudas: fijar a mano cuanto debe o le deben a alguien
+document.getElementById("form-ajuste").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!ajusteP) return;
+  const signo = document.getElementById("aj-tipo").value === "debe" ? -1 : 1;
+  if (!estado.ajustes) estado.ajustes = {};
+  estado.ajustes[ajusteP] = signo * (parseFloat(document.getElementById("aj-monto").value) || 0);
+  cerrarAjuste(); sfx("save"); render(); await guardarDatos("Fija deuda a mano FCM");
+});
+document.getElementById("aj-auto").addEventListener("click", async () => {
+  if (!ajusteP || !estado.ajustes) return cerrarAjuste();
+  delete estado.ajustes[ajusteP];
+  cerrarAjuste(); render(); await guardarDatos("Vuelve al calculo automatico FCM");
+});
+document.getElementById("aj-cancel").addEventListener("click", cerrarAjuste);
+
 // Deudas: alta manual de un pago entre dos personas
 document.getElementById("btn-add-pago").addEventListener("click", () => document.getElementById("add-pago-sheet").classList.toggle("hidden"));
 document.getElementById("form-pago").addEventListener("submit", async (e) => {
@@ -708,6 +767,6 @@ document.getElementById("btn-olvidar").addEventListener("click", () => {
 // Service worker network-first (ver sw.js). Habilita "Instalar app" en Android.
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js?v=9").catch(() => {});
+    navigator.serviceWorker.register("sw.js?v=10").catch(() => {});
   });
 }

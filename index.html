@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Claudio FCM">
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 <div class="phone">
@@ -154,11 +154,14 @@
       </form>
     </div>
 
+    <div id="deu-descuadre" class="deu-aviso hidden"></div>
+
     <h3 class="stat-h">Quién le paga a quién</h3>
     <p class="hint-mini">Mínimo de transferencias para que queden todos a mano.</p>
     <div id="deu-tx"></div>
 
     <h3 class="stat-h">Balance</h3>
+    <p class="hint-mini">Tocá a una persona para fijar cuánto debe o le deben, sin depender de los gastos.</p>
     <div id="deu-balance"></div>
 
     <h3 class="stat-h">Pagos registrados</h3>
@@ -248,9 +251,31 @@
     </div>
   </div>
 
+  <!-- Fijar a mano el saldo de una persona -->
+  <div id="ajuste-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3 class="modal-title">Saldo de <span id="aj-quien"></span></h3>
+      <p class="hint-mini" id="aj-hint"></p>
+      <form id="form-ajuste">
+        <div class="form-row">
+          <select id="aj-tipo">
+            <option value="debe">Debe</option>
+            <option value="le-deben">Le deben</option>
+          </select>
+          <input type="number" id="aj-monto" placeholder="Monto $" step="0.01" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="aj-auto" class="btn-danger">Volver al cálculo</button>
+          <button type="submit" class="btn-primary">Fijar</button>
+        </div>
+        <button type="button" id="aj-cancel" class="btn-secondary">Cancelar</button>
+      </form>
+    </div>
+  </div>
+
   <div id="sync-badge" class="sync-badge"></div>
   <div id="bocadillo" class="bocadillo hidden"></div>
 </div>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
