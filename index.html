@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Claudio FCM">
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 <div class="phone">
@@ -37,6 +37,19 @@
       <p id="config-msg" class="leer-msg"></p>
     </div>
     <div class="add-sheet">
+      <h3 class="stat-h" style="margin:0 0 4px">Cotización del dólar</h3>
+      <p class="hint-mini">Los montos en US$ se calculan sobre el peso con esta cotización, cada vez que abrís la app. No se guardan.</p>
+      <div class="form-row">
+        <select id="dolar-casa">
+          <option value="blue">Dólar blue</option>
+          <option value="oficial">Dólar oficial</option>
+        </select>
+        <button type="button" id="btn-refrescar-dolar" class="btn-secondary">Actualizar</button>
+      </div>
+      <div class="cotiz-bar" style="margin-top:10px"><span class="cotiz-txt"></span></div>
+    </div>
+
+    <div class="add-sheet">
       <h3 class="stat-h" style="margin:0 0 4px">Backup de datos</h3>
       <p class="hint-mini">Copia exacta de <b>fcm-data.json</b>. Sirve para respaldar o para mover los datos a otro lado.</p>
       <div class="form-row">
@@ -61,6 +74,8 @@
       </div>
     </div>
 
+    <div class="cotiz-bar"><span class="cotiz-txt"></span></div>
+
     <div id="reminder-pop" class="reminder hidden"></div>
 
     <div class="hero">
@@ -82,7 +97,6 @@
         <div class="form-row">
           <select id="g-tipo"><option value="egreso">Egreso</option><option value="ingreso">Ingreso</option></select>
           <input type="number" id="g-ars" placeholder="Monto $" step="0.01" required>
-          <input type="number" id="g-usd" placeholder="USD" step="0.01">
         </div>
         <button type="submit" class="btn-primary">Agregar gasto</button>
       </form>
@@ -191,7 +205,6 @@
         <input type="text" id="p-concepto" placeholder="CONCEPTO" required>
         <div class="form-row">
           <input type="number" id="p-ars" placeholder="Monto $" step="0.01" required>
-          <input type="number" id="p-usd" placeholder="USD" step="0.01">
         </div>
         <input type="text" id="p-nota" placeholder="NOTA (OPCIONAL)">
         <button type="submit" class="btn-primary">Agregar próximo</button>
@@ -240,7 +253,6 @@
         <div class="form-row">
           <select id="e-tipo"><option value="egreso">Egreso</option><option value="ingreso">Ingreso</option></select>
           <input type="number" id="e-ars" placeholder="Monto $" step="0.01" required>
-          <input type="number" id="e-usd" placeholder="USD" step="0.01">
         </div>
         <div class="modal-actions">
           <button type="button" id="edit-del" class="btn-danger">Eliminar</button>
@@ -276,6 +288,6 @@
   <div id="sync-badge" class="sync-badge"></div>
   <div id="bocadillo" class="bocadillo hidden"></div>
 </div>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

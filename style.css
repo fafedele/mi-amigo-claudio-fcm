@@ -261,6 +261,26 @@ body {
 }
 .btn-danger.hidden { display: none; }
 
+/* ---- Cotización ---- */
+.cotiz-bar {
+  display: flex; align-items: center; gap: 8px;
+  background: #fffaf0;
+  border: 2.5px solid var(--negro);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--antracita);
+  box-shadow: 2px 2px 0 var(--negro);
+}
+.cotiz-bar::before {
+  content: ""; flex-shrink: 0;
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--verde); border: 2px solid var(--negro);
+}
+.cotiz-bar.stale::before { background: var(--rojo); }
+
 /* ---- App bar ---- */
 .appbar {
   display: flex; align-items: center; justify-content: space-between;

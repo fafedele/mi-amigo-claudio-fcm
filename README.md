@@ -25,6 +25,23 @@ Fine-grained PAT, acotado a **`control-de-egresos` únicamente**, con:
 
 Nada más. Si el token se filtra, el daño queda contenido en ese repo.
 
+## Cotización del dólar
+
+Los montos en US$ **se calculan** sobre el monto en pesos con la cotización de hoy, en cada render. No se guardan en `fcm-data.json` y ya no se cargan a mano — el input de USD se quitó de los tres formularios.
+
+Antes `monto_usd` era un campo manual, y eso daba tres problemas a la vez: desde julio de 2026 nadie lo completaba (25 de 45 gastos iban como US$0, o sea $1.331.164 sin contar), los que sí estaban usaban cotizaciones de 1.414–1.440 ya viejas, y sumar dólares convertidos en fechas distintas no da un número interpretable.
+
+| | |
+|---|---|
+| Fuente | `https://dolarapi.com/v1/dolares/{blue\|oficial}` — pública, sin API key, con CORS |
+| Cuál | Elegible en **⚙ → Cotización del dólar**. Preferencia por dispositivo (`localStorage`), no dato compartido |
+| Sin red | Usa el último valor guardado y lo marca en rojo: *"sin conexión, valor guardado"* |
+| Sin red ni valor | Muestra `—`, nunca `US$ 0` |
+
+El valor en uso siempre está a la vista en la barra bajo el título de **Totales**.
+
+Los `monto_usd` viejos siguen en el JSON — no se borran, simplemente ya no se leen.
+
 ## Deudas interpersonales
 
 Solapa **Deudas**. A diferencia de *Emparejar* (que dice cuánto le falta a cada uno contra el promedio), acá sale **quién le transfiere a quién y cuánto**.

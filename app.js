@@ -114,6 +114,50 @@ function badge(txt, ok) {
   b._t = setTimeout(() => { b.className = "sync-badge"; }, 2500);
 }
 
+/* ---------- cotización del dólar ---------- */
+// El USD ya no se carga a mano: se deriva del monto en pesos con la cotización de
+// hoy, en cada render. Sumar dólares convertidos en fechas distintas no significaba
+// nada, y desde julio nadie completaba el campo, así que la mitad iba como US$0.
+const CASAS = { blue: "Blue", oficial: "Oficial" };
+let cotiz = { valor: null, casa: localStorage.getItem("dolar_casa") || "blue", fecha: null, vieja: false };
+
+async function cargarCotizacion() {
+  const casa = cotiz.casa;
+  try {
+    const r = await fetch(`https://dolarapi.com/v1/dolares/${casa}`, { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    const v = Number(j.venta || j.compra || 0);
+    if (!v) throw new Error("sin valor");
+    cotiz = { valor: v, casa, fecha: j.fechaActualizacion || new Date().toISOString(), vieja: false };
+    localStorage.setItem("dolar_" + casa, JSON.stringify({ valor: v, fecha: cotiz.fecha }));
+  } catch (e) {
+    // Sin red: última cotización conocida de este dispositivo, marcada como vieja.
+    let c = null;
+    try { c = JSON.parse(localStorage.getItem("dolar_" + casa) || "null"); } catch (e2) {}
+    cotiz = c && c.valor
+      ? { valor: c.valor, casa, fecha: c.fecha, vieja: true }
+      : { valor: null, casa, fecha: null, vieja: false };
+  }
+  pintarCotiz();
+}
+
+// Sin cotización no inventamos un número: va un guion, no US$0.
+const aUsd = (ars) => (cotiz.valor ? Number(ars || 0) / cotiz.valor : null);
+const fmtUSDc = (ars) => { const u = aUsd(ars); return u === null ? "—" : fmtUSD(u); };
+
+function pintarCotiz() {
+  const txt = cotiz.valor
+    ? `Dólar ${CASAS[cotiz.casa] || cotiz.casa} $${cotiz.valor.toLocaleString("es-AR")}` +
+      (cotiz.fecha ? ` · ${new Date(cotiz.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` : "") +
+      (cotiz.vieja ? " · sin conexión, valor guardado" : "")
+    : "Sin cotización: no hay red ni valor guardado.";
+  document.querySelectorAll(".cotiz-txt").forEach((e) => { e.textContent = txt; });
+  document.querySelectorAll(".cotiz-bar").forEach((e) => e.classList.toggle("stale", cotiz.vieja || !cotiz.valor));
+  const sel = document.getElementById("dolar-casa");
+  if (sel) sel.value = cotiz.casa;
+}
+
 /* ---------- JSON canonico (lo que se sube al repo y lo que se exporta) ---------- */
 function jsonActual() {
   return JSON.stringify({ ...estado, actualizado: new Date().toISOString().slice(0, 10) }, null, 2);
@@ -229,7 +273,7 @@ function opcionesFiltro() {
 function renderTotales() {
   const egresos = estado.gastos.filter(esEgreso);
   document.getElementById("tot-ars").textContent = fmtARS(egresos.reduce((s, x) => s + Number(x.monto_ars || 0), 0));
-  document.getElementById("tot-usd").textContent = fmtUSD(egresos.reduce((s, x) => s + Number(x.monto_usd || 0), 0));
+  document.getElementById("tot-usd").textContent = fmtUSDc(egresos.reduce((s, x) => s + Number(x.monto_ars || 0), 0));
   document.getElementById("tot-cant").textContent = egresos.length;
   renderBars("bars-mes", agrupar(egresos, (x) => up(x.mes)));
   renderBars("bars-concepto", agrupar(egresos, (x) => up(x.concepto)));
@@ -247,7 +291,7 @@ function renderTotales() {
       <div class="mov-info"><div class="mov-desc">${up(x.concepto)}</div>
         <div class="mov-meta">${up(x.id_persona)} · ${x.fecha || ""}</div></div>
       <div class="mov-right"><div class="mov-amount ${esEgreso(x) ? "egreso" : "ingreso"}">${esEgreso(x) ? "-" : "+"}${fmtARS(x.monto_ars)}</div>
-        <div class="mov-usd">${fmtUSD(x.monto_usd)}</div></div>
+        <div class="mov-usd">${fmtUSDc(x.monto_ars)}</div></div>
       <button class="mov-del" data-id="${x.id}">✕</button>`;
     row.querySelector(".mov-del").addEventListener("click", async (e) => {
       e.stopPropagation();
@@ -272,7 +316,6 @@ function abrirEdicion(id) {
   document.getElementById("e-concepto").value = up(g.concepto);
   document.getElementById("e-tipo").value = esEgreso(g) ? "egreso" : "ingreso";
   document.getElementById("e-ars").value = g.monto_ars || "";
-  document.getElementById("e-usd").value = g.monto_usd || "";
   document.getElementById("edit-modal").classList.remove("hidden");
   sfx("open");
 }
@@ -284,8 +327,8 @@ function calcEmparejar() {
   const porId = {};
   egresos.forEach((g) => {
     const k = up(g.id_persona) || "OTRO";
-    if (!porId[k]) porId[k] = { ars: 0, usd: 0, n: 0 };
-    porId[k].ars += Number(g.monto_ars || 0); porId[k].usd += Number(g.monto_usd || 0); porId[k].n += 1;
+    if (!porId[k]) porId[k] = { ars: 0, n: 0 };
+    porId[k].ars += Number(g.monto_ars || 0); porId[k].n += 1;
   });
   const montos = GRUPO_EMPAREJAR.map((p) => (porId[p] ? porId[p].ars : 0));
   const total = montos.reduce((a, b) => a + b, 0), prom = total / GRUPO_EMPAREJAR.length;
@@ -304,7 +347,7 @@ function renderPorId() {
     card.innerHTML = `<div class="porid-avatar" style="background:${COLORES[i % COLORES.length]}">${persona.slice(0, 2)}</div>
       <div class="porid-body"><div class="porid-name">${persona}</div>
         <div class="porid-meta">${d.n} movimiento${d.n !== 1 ? "s" : ""}</div></div>
-      <div class="porid-amounts"><div class="porid-ars">${fmtARS(d.ars)}</div><div class="porid-usd">${fmtUSD(d.usd)}</div></div>`;
+      <div class="porid-amounts"><div class="porid-ars">${fmtARS(d.ars)}</div><div class="porid-usd">${fmtUSDc(d.ars)}</div></div>`;
     cont.appendChild(card);
   });
   if (!orden.length) cont.innerHTML = '<p style="color:var(--antracita);font-size:13px">Sin datos aún.</p>';
@@ -501,7 +544,7 @@ function renderDeudas() {
 function renderProximos() {
   const items = estado.proximos;
   document.getElementById("prox-ars").textContent = fmtARS(items.reduce((s, p) => s + Number(p.monto_ars || 0), 0));
-  document.getElementById("prox-usd").textContent = fmtUSD(items.reduce((s, p) => s + Number(p.monto_usd || 0), 0));
+  document.getElementById("prox-usd").textContent = fmtUSDc(items.reduce((s, p) => s + Number(p.monto_ars || 0), 0));
   document.getElementById("prox-cant").textContent = items.length;
   const cont = document.getElementById("lista-prox");
   cont.innerHTML = "";
@@ -512,7 +555,7 @@ function renderProximos() {
     row.innerHTML = `<div class="mov-avatar">🗓️</div>
       <div class="mov-info"><div class="mov-desc">${up(p.concepto)}</div>
         <div class="mov-meta">${p.fecha || "SIN FECHA"}${p.id_persona ? " · " + up(p.id_persona) : ""}${p.nota ? " · " + up(p.nota) : ""}</div></div>
-      <div class="mov-right"><div class="mov-amount egreso">${fmtARS(p.monto_ars)}</div><div class="mov-usd">${fmtUSD(p.monto_usd)}</div></div>
+      <div class="mov-right"><div class="mov-amount egreso">${fmtARS(p.monto_ars)}</div><div class="mov-usd">${fmtUSDc(p.monto_ars)}</div></div>
       <button class="mov-del" data-id="${p.id}">✕</button>`;
     row.querySelector(".mov-del").addEventListener("click", async () => {
       estado.proximos = estado.proximos.filter((y) => y.id != p.id);
@@ -617,7 +660,6 @@ document.getElementById("form-gasto").addEventListener("submit", async (e) => {
     concepto: up(document.getElementById("g-concepto").value),
     tipo: document.getElementById("g-tipo").value,
     monto_ars: parseFloat(document.getElementById("g-ars").value) || 0,
-    monto_usd: parseFloat(document.getElementById("g-usd").value) || 0,
     cantidad: 1,
   });
   e.target.reset(); document.getElementById("add-gasto-sheet").classList.add("hidden");
@@ -636,7 +678,6 @@ document.getElementById("form-edit").addEventListener("submit", async (e) => {
     g.concepto = up(document.getElementById("e-concepto").value);
     g.tipo = document.getElementById("e-tipo").value;
     g.monto_ars = parseFloat(document.getElementById("e-ars").value) || 0;
-    g.monto_usd = parseFloat(document.getElementById("e-usd").value) || 0;
   }
   cerrarEdicion(); render(); await guardarDatos("Edita gasto FCM");
 });
@@ -655,7 +696,6 @@ document.getElementById("form-prox").addEventListener("submit", async (e) => {
     concepto: up(document.getElementById("p-concepto").value),
     id_persona: up(document.getElementById("p-persona").value),
     monto_ars: parseFloat(document.getElementById("p-ars").value) || 0,
-    monto_usd: parseFloat(document.getElementById("p-usd").value) || 0,
     nota: up(document.getElementById("p-nota").value),
   });
   e.target.reset(); document.getElementById("add-prox-sheet").classList.add("hidden");
@@ -673,6 +713,16 @@ document.getElementById("form-todo").addEventListener("submit", async (e) => {
   });
   e.target.reset(); document.getElementById("add-todo-sheet").classList.add("hidden");
   sfx("add"); renderTodo(); await guardarDatos("Agrega tarea FCM");
+});
+
+// Cotización: qué dólar se usa. Es preferencia de este dispositivo, no dato compartido.
+document.getElementById("dolar-casa").addEventListener("change", async (e) => {
+  cotiz.casa = e.target.value;
+  localStorage.setItem("dolar_casa", cotiz.casa);
+  await cargarCotizacion(); render();
+});
+document.getElementById("btn-refrescar-dolar").addEventListener("click", async () => {
+  await cargarCotizacion(); render(); badge("Cotización actualizada ✓");
 });
 
 // Deudas: fijar a mano cuanto debe o le deben a alguien
@@ -759,6 +809,7 @@ document.getElementById("btn-olvidar").addEventListener("click", () => {
 
 /* ---------- arranque ---------- */
 (async function init() {
+  await cargarCotizacion();
   if (!token) { goScreen("screen-config"); return; }
   try { await cargarDatos(); render(); goScreen("screen-totales"); }
   catch (err) { goScreen("screen-config"); document.getElementById("config-msg").textContent = "Reconectá: " + err.message; }
@@ -767,6 +818,6 @@ document.getElementById("btn-olvidar").addEventListener("click", () => {
 // Service worker network-first (ver sw.js). Habilita "Instalar app" en Android.
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js?v=10").catch(() => {});
+    navigator.serviceWorker.register("sw.js?v=11").catch(() => {});
   });
 }
