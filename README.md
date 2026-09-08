@@ -82,6 +82,8 @@ style.css       Estilos, tema y layout tipo mockup de teléfono
 sw.js           Service worker network-first
 manifest.json   Manifiesto PWA
 assets/         Logo e íconos SVG
+scripts/        version.sh: mantiene alineado el cache-busting
+.githooks/      pre-commit que bumpea la versión
 ```
 
 ## Desarrollo local
@@ -99,10 +101,35 @@ Push a `main` → GitHub Pages publica automáticamente.
 
 El service worker es **network-first con fallback a caché**: con red, gana siempre la red y se refresca la caché; sin red, se sirve lo último guardado. Las respuestas de `api.github.com` **no** se cachean nunca (filtro por `origin`).
 
-Al cambiar `app.js` o `style.css`, bumpear dos cosas en el mismo commit:
+La versión que rompe caché vive en **4 lugares** repartidos en 3 archivos:
 
-1. El query string en `index.html` (`app.js?v=N`, `style.css?v=N`)
-2. La constante `CACHE` en `sw.js` (`claudio-fcm-vN`)
+| Archivo | Referencia |
+|---|---|
+| `index.html` | `style.css?v=N` |
+| `index.html` | `app.js?v=N` |
+| `sw.js` | `const CACHE = "claudio-fcm-vN"` |
+| `app.js` | `navigator.serviceWorker.register("sw.js?v=N")` |
+
+**No se editan a mano.** Un hook de pre-commit las bumpea juntas cuando el commit toca `app.js`, `style.css` o `sw.js`, y mete los tres archivos en el mismo commit. Así el celular nunca queda con una mezcla de versiones — ya pasó una vez que `index.html` pidiera `style.css?v=6` junto a `app.js?v=7`.
+
+En un clon nuevo hay que activarlo una sola vez:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+El hook **aborta** si hay cambios sin stagear en `index.html`, `sw.js` o `app.js`: el bump los tocaría y un `git add` automático se llevaría trabajo que no pensabas commitear. Stageá o `git stash` y volvé a intentar.
+
+A mano, si hace falta:
+
+```bash
+./scripts/version.sh check    # falla si las 4 no coinciden
+./scripts/version.sh bump     # todas a max+1
+./scripts/version.sh set 20   # todas a 20
+./scripts/version.sh print    # la versión actual
+```
+
+Un commit que solo toca `README.md` u otros archivos no bumpea nada.
 
 Si un service worker queda pegado: DevTools → Application → Service Workers → *Unregister*.
 

@@ -1,0 +1,23 @@
+#!/bin/sh
+# Bumpea la version cuando se commitea algo que se sirve con cache-busting, para
+# que el celular nunca quede con una mezcla de archivos de versiones distintas.
+set -eu
+RAIZ=$(git rev-parse --show-toplevel)
+cd "$RAIZ"
+
+CACHEADOS='^(app\.js|style\.css|sw\.js)$'
+git diff --cached --name-only | grep -qE "$CACHEADOS" || exit 0
+
+# El bump toca index.html, sw.js y app.js. Si alguno tiene cambios sin stagear,
+# un "git add" acá se llevaría trabajo que no pensabas commitear.
+SUCIOS=$(git diff --name-only -- index.html sw.js app.js)
+if [ -n "$SUCIOS" ]; then
+  echo "pre-commit: hay cambios sin stagear en:" >&2
+  echo "$SUCIOS" | sed 's/^/  /' >&2
+  echo "  El bump de version los tocaría. Stagealos (git add) o guardalos (git stash) primero." >&2
+  exit 1
+fi
+
+./scripts/version.sh bump
+git add index.html sw.js app.js
+./scripts/version.sh check
